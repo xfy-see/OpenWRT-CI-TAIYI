@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (C) 2026 VIKINGYFY
+
 #CI项目
 name: OWRT-ALL
 
@@ -17,7 +20,7 @@ on:
         type: string
       TEST:
         description: '仅输出配置文件，不编译固件。'
-        default: 'false'
+        default: false
         required: false
         type: boolean
 
@@ -28,11 +31,12 @@ permissions: write-all
 jobs:
   config:
     name: ${{matrix.CONFIG}}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       #max-parallel: 3
       matrix:
-        CONFIG: [MEDIATEK, ROCKCHIP, X86]
+        CONFIG: [MEDIATEK-WIFI-YES, ROCKCHIP, X86]
         SOURCE: [VIKINGYFY/immortalwrt]
         BRANCH: [owrt]
 
@@ -48,7 +52,7 @@ jobs:
       #默认WIFI名称
       WRT_SSID: OWRT
       #默认WIFI密码
-      WRT_WORD: 12345678
+      WRT_WORD: '12345678'
       #默认地址
       WRT_IP: 192.168.10.1
       #默认密码，仅作提示，修改无用
@@ -62,4 +66,4 @@ jobs:
       #插件调整
       WRT_PACKAGE: ${{inputs.PACKAGE}}
       #仅输出配置文件
-      WRT_TEST: ${{inputs.TEST}}
+      WRT_TEST: ${{inputs.TEST || false}}
