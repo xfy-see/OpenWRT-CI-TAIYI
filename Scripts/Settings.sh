@@ -58,7 +58,7 @@ WIFI_DISABLED=false
 if [[ "${WRT_CONFIG,,}" == *"wifi"* && "${WRT_CONFIG,,}" == *"no"* ]]; then
 	WIFI_DISABLED=true
 elif [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
-	# TEST 等自定义配置不一定在文件名中标记 WIFI；按覆盖后的最终值判断。
+	# 未在名称中标记 WIFI 的自定义配置，按覆盖后的最终值判断。
 	ATH11K_STATE=$(awk -F= '
 		/^CONFIG_PACKAGE_kmod-ath11k=/ { state = $2 }
 		/^# CONFIG_PACKAGE_kmod-ath11k is not set$/ { state = "n" }
