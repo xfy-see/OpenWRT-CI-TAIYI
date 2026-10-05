@@ -1,24 +1,25 @@
 name: Auto-Clean
 
+# 历史任务曾每天删除全部 Release、标签和运行记录。
+# 改为手动只读盘点，保留固件及同 ABI 软件包的追溯链。
 on:
-  #自动清理：每天早上6点
-  schedule:
-    - cron: 0 22 * * *
-  #手动清理
   workflow_dispatch:
 
-permissions: write-all
+permissions:
+  contents: read
+  actions: read
 
 jobs:
-  auto_clean:
-    runs-on: ubuntu-latest
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Delete old Releases and Workflows
-        uses: ophub/delete-releases-workflows@main
-        with:
-          gh_token: ${{secrets.GITHUB_TOKEN}}
-          delete_releases: true
-          releases_keep_latest: 0
-          delete_tags: true
-          delete_workflows: true
-          workflows_keep_day: 0
+      - name: List retained releases and workflow runs (no deletion)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release list --repo "$GH_REPO" --limit 30
+          gh run list --repo "$GH_REPO" --limit 30
+          printf '%s\n' '只读检查完成，未删除任何 Release、标签、artifact 或运行记录。' >> "$GITHUB_STEP_SUMMARY"

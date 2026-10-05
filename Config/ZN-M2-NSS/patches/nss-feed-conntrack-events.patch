@@ -1,0 +1,14 @@
+diff --git a/qca-nss-ecm/Makefile b/qca-nss-ecm/Makefile
+index d7cba36..8a6dd96 100644
+--- a/qca-nss-ecm/Makefile
++++ b/qca-nss-ecm/Makefile
+@@ -42,7 +42,8 @@ define KernelPackage/qca-nss-ecm
+ 		   +PACKAGE_kmod-pppoe:kmod-pppol2tp
+   TITLE:=QCA NSS Enhanced Connection Manager (ECM)
+   FILES:=$(PKG_BUILD_DIR)/ecm.ko
+-  KCONFIG:=CONFIG_NF_CONNTRACK_DSCPREMARK_EXT=y
++  KCONFIG:=CONFIG_NF_CONNTRACK_DSCPREMARK_EXT=y \
++	CONFIG_NF_CONNTRACK_EVENTS=y
+ endef
+ 
+ define KernelPackage/qca-nss-ecm/Description

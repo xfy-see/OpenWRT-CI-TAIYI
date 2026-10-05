@@ -1,2 +1,5 @@
 *.txt text eol=lf
 *.sh text eol=lf
+
+# Preserve context prefixes and nested patch whitespace verbatim.
+*.patch -whitespace

@@ -1,0 +1,9 @@
+diff --git a/utils/ttyd/files/ttyd.config b/utils/ttyd/files/ttyd.config
+--- a/utils/ttyd/files/ttyd.config
++++ b/utils/ttyd/files/ttyd.config
+@@ -1,4 +1,5 @@
+ 
+ config ttyd
++	option enable '0'
+ 	option interface '@lan'
+ 	option command '/bin/login'

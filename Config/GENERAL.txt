@@ -1,3 +1,7 @@
+# DNS/DHCP：只安装 full 变体，避免与基础包争用同一路径
+CONFIG_PACKAGE_dnsmasq=n
+CONFIG_PACKAGE_dnsmasq-full=y
+
 #科学插件调整
 CONFIG_PACKAGE_luci-app-homeproxy=n
 #增加插件
