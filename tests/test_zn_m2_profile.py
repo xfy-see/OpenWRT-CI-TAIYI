@@ -3,6 +3,8 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import copy
+import struct
 import tempfile
 import unittest
 from unittest import mock
@@ -24,6 +26,69 @@ build = load("builder", "build.py")
 images = load("images", "verify-images.py")
 
 
+class WiredMemoryTests(unittest.TestCase):
+    def setUp(self):
+        self.nodes = images.FDT(images.fixture_board()).nodes
+
+    def verify(self, nodes):
+        return images.verify_board_dtb(images.fixture_fdt(nodes))
+
+    def test_zero_q6_layout(self):
+        result = self.verify(self.nodes)["wired_memory"]
+        self.assertEqual(result["raw_reclaim_bytes"], 85 * 1024 * 1024)
+        self.assertTrue(result["wcss_node_removed"])
+        self.assertTrue(result["wifi_node_removed"])
+        self.assertEqual(result["q6_bytes"], 0)
+        self.assertFalse(result["hardware_boot_validated"])
+
+    def test_old_q6_reservation_is_rejected(self):
+        self.nodes["/reserved-memory/memory@4ab00000"] = {
+            "reg": struct.pack(">QQ", 0x4ab00000, 0x5500000), "no-map": b""}
+        with self.assertRaises(images.VerificationError):
+            self.verify(self.nodes)
+
+    def test_wireless_nodes_must_be_removed_even_if_disabled(self):
+        for compatible in ("qcom,ipq6018-wcss-pil", "qcom,ipq6018-wifi"):
+            for status in (b"okay\0", b"disabled\0"):
+                nodes = copy.deepcopy(self.nodes)
+                nodes["/soc/wireless"] = {"compatible": compatible.encode()+b"\0", "status": status}
+                with self.subTest(compatible=compatible, status=status), self.assertRaises(images.VerificationError):
+                    self.verify(nodes)
+
+    def test_each_protected_reservation_is_preserved(self):
+        for path in images.FDT(images.fixture_board()).children("/reserved-memory"):
+            for mutation in ("size", "mapped", "disabled", "missing"):
+                nodes = copy.deepcopy(self.nodes)
+                props = nodes[path]
+                if mutation == "size":
+                    props["reg"] = props["reg"][:-1] + b"\x01"
+                elif mutation == "mapped":
+                    del props["no-map"]
+                elif mutation == "disabled":
+                    props["status"] = b"disabled\0"
+                else:
+                    del nodes[path]
+                with self.subTest(path=path, mutation=mutation), self.assertRaises(images.VerificationError):
+                    self.verify(nodes)
+
+    def test_extra_reservation_is_rejected(self):
+        self.nodes["/reserved-memory/guard@4bb00000"] = {
+            "reg": struct.pack(">QQ", 0x4bb00000, 0x300000), "no-map": b""}
+        with self.assertRaises(images.VerificationError):
+            self.verify(self.nodes)
+
+    def test_dangling_memory_reference_is_rejected(self):
+        self.nodes["/soc/other-consumer"] = {"memory-region": struct.pack(">I", 101)}
+        with self.assertRaises(images.VerificationError):
+            self.verify(self.nodes)
+
+    def test_memreserve_map_cannot_hide_reclaimed_range(self):
+        dt = images.FDT(images.fixture_board())
+        dt.reservations = [(0x4ab00000, 0x5500000)]
+        with self.assertRaises(images.VerificationError):
+            images.verify_wired_reserved_memory(dt)
+
+
 class ProfileTests(unittest.TestCase):
     def test_locks_and_profile(self):
         lock, config = build.validate_inputs()
@@ -31,6 +96,21 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(config["CONFIG_PACKAGE_dnsmasq-full"], "y")
         self.assertEqual(config["CONFIG_PACKAGE_dnsmasq"], "n")
         self.assertNotIn("CONFIG_PACKAGE_kmod-mtd-rw", config)
+
+    def test_zero_q6_patch_is_locked_after_board_port(self):
+        lock, _ = build.validate_inputs()
+        files = [patch["file"] for patch in lock["patches"]]
+        zero = "Config/ZN-M2-NSS/patches/zn-m2-wired-memory-zero.patch"
+        base = "Config/ZN-M2-NSS/patches/zn-m2-wired-nss-v25.12.5.patch"
+        self.assertGreater(files.index(zero), files.index(base))
+        self.assertEqual(lock["identity"]["version"], "25.12.5-nss-taiyi3-q6zero")
+        lock["patches"] = [patch for patch in lock["patches"] if patch["file"] != zero]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sources.lock.json"
+            path.write_text(json.dumps(lock))
+            with mock.patch.object(build, "LOCK_PATH", path):
+                with self.assertRaisesRegex(ValueError, "Missing zero-Q6"):
+                    build.validate_inputs()
 
     def test_duplicate_hyphenated_keys_rejected(self):
         with self.assertRaisesRegex(ValueError, "Duplicate"):
@@ -115,6 +195,7 @@ class ProfileTests(unittest.TestCase):
                 self.assertIsNone(archive.testzip())
                 self.assertIn("Config/ZN-M2-NSS.config", archive.namelist())
                 self.assertIn("Scripts/zn-m2-nss/build.py", archive.namelist())
+                self.assertIn("Config/ZN-M2-NSS/patches/zn-m2-wired-memory-zero.patch", archive.namelist())
                 self.assertFalse(any(".git/" in name or "__pycache__" in name for name in archive.namelist()))
 
 

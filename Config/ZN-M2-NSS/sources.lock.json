@@ -11,8 +11,8 @@
     "sha256": "e998a232b9418db3301cb58468e291a4f41d6ab8306029b30d991f56251dc8d2"
   },
   "identity": {
-    "version": "25.12.5-nss-taiyi1",
-    "revision": "v25.12.5-nss.taiyi1-f0a60eee"
+    "version": "25.12.5-nss-taiyi3-q6zero",
+    "revision": "v25.12.5-nss.taiyi3-q6zero-f0a60eee"
   },
   "feeds": {
     "packages": {
@@ -52,6 +52,11 @@
     {
       "file": "Config/ZN-M2-NSS/patches/zn-m2-wired-nss-v25.12.5.patch",
       "sha256": "9a6318d8c104fb967452e0f3143525efb4ec9ef72403754d3b58340b4ef6c370",
+      "directory": "."
+    },
+    {
+      "file": "Config/ZN-M2-NSS/patches/zn-m2-wired-memory-zero.patch",
+      "sha256": "d6ae456e1eabe1ea00ed58b12ff96002c2f6d608f591dd77f75e76a22689aa6e",
       "directory": "."
     }
   ],

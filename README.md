@@ -2,6 +2,10 @@
 
 ## ZN M2 固定 release / NSS 构建
 
+当前 M2 配置为 **25.12.5-nss-taiyi3-q6zero 零 Q6 保留实验版**。
+Wi-Fi/WCSS 节点及其 Q6 预留一并移除，NSS 的 16 MiB 和其他保留区不变。
+**尚未完成实机验证；编译通过不等于可直接刷入。** 下次手动运行 ZN-M2-NSS 会使用此布局。
+
 Actions → **ZN-M2-NSS** 是新的固件打包入口：
 
 - 官方 OpenWrt v25.12.5 / Linux 6.12.94 源码底座，加固定的 M2 / NSS 适配

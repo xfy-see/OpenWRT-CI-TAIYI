@@ -1,0 +1,18 @@
+--- a/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq6000-m2.dts
++++ b/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq6000-m2.dts
+@@ -233,8 +233,13 @@
+ &ssphy_0 { status = "okay"; };
+ &usb3 { dr_mode = "host"; status = "okay"; };
+ 
+-/* Wired-only: keep native reserved-memory safety boundaries intact. */
+-&wifi { status = "disabled"; };
++/* Experimental wired-only zero-Q6 layout. Remove all wireless consumers
++ * and their carveout together; never use this DT with Wi-Fi/WCSS enabled.
++ * NSS, bootloader, SBL, TrustZone and SMEM reservations remain unchanged.
++ */
++/delete-node/ &wifi;
++/delete-node/ &q6v5_wcss;
++/delete-node/ &q6_region;
+ &nss0 {
+ 	/delete-property/ qcom,wlanredirect-enabled;
+ 	/delete-property/ qcom,wlan-dataplane-offload-enabled;

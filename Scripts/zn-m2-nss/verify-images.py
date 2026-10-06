@@ -209,6 +209,56 @@ class FDT:
         return self.phandles[phandle]
 
 
+def verify_wired_reserved_memory(dt):
+    """Fail closed on the M2-only zero-Q6 layout and protected carveouts."""
+    expected = {
+        "/reserved-memory/memory@60000": (0x60000, 0x6000),
+        "/reserved-memory/memory@40000000": (0x40000000, 0x1000000),
+        "/reserved-memory/bootloader@4a100000": (0x4a100000, 0x400000),
+        "/reserved-memory/sbl@4a500000": (0x4a500000, 0x100000),
+        "/reserved-memory/memory@4a600000": (0x4a600000, 0x400000),
+        "/reserved-memory/memory@4aa00000": (0x4aa00000, 0x100000),
+    }
+    require(not dt.reservations, "Unexpected FDT memreserve entries")
+    for prop in ("#address-cells", "#size-cells"):
+        require(cell_value(dt.prop("/reserved-memory", prop)) == 2,
+                "M2 reserved-memory cell widths changed")
+    require(set(dt.children("/reserved-memory")) == set(expected),
+            "Zero-Q6 reserved-memory nodes changed")
+    regions = []
+    for path, (address, size) in expected.items():
+        require(dt.prop(path, "reg") == struct.pack(">QQ", address, size),
+                "M2 protected reserved-memory layout changed: " + path)
+        require("no-map" in dt.nodes[path] and dt.enabled(path),
+                "Protected reservation is mapped or disabled: " + path)
+        regions.append((address, address + size, path))
+    regions.sort()
+    require(all(left[1] <= right[0] for left, right in zip(regions, regions[1:])),
+            "Reserved-memory regions overlap")
+    require(not dt.compatible("qcom,ipq6018-wcss-pil"),
+            "WCSS remoteproc must be removed for zero-Q6")
+    require(not dt.compatible("qcom,ipq6018-wifi"),
+            "Wi-Fi consumer must be removed for zero-Q6")
+    memory_references = 0
+    for path, props in dt.nodes.items():
+        require("qcom,rproc" not in props, "Unexpected wireless remoteproc reference: " + path)
+        if "memory-region" not in props:
+            continue
+        data = props["memory-region"]
+        require(len(data) > 0 and len(data) % 4 == 0, "Malformed memory-region phandles: " + path)
+        for i in range(0, len(data), 4):
+            target = dt.resolve(data[i:i + 4])
+            require(target in expected, "Unexpected reserved-memory consumer: " + path)
+            memory_references += 1
+    return {"q6_bytes": 0, "q6_node_removed": True,
+            "wcss_node_removed": True, "wifi_node_removed": True,
+            "protected_reservations_unchanged": True,
+            "memory_region_references_verified": memory_references,
+            "reclaimed_range": ["0x4ab00000", "0x50000000"],
+            "raw_reclaim_bytes": 0x5500000,
+            "hardware_boot_validated": False}
+
+
 def verify_board_dtb(data):
     dt = FDT(data)
     require(dt.text("/", "model") == "ZN M2", "DTB model is not ZN M2")
@@ -230,8 +280,7 @@ def verify_board_dtb(data):
         require(dt.enabled(phy), "Port PHY is disabled")
         ports[alias] = {"path": path, "label": label, "port_id": portid, "phy_address": phyid}
     wifi = dt.compatible("qcom,ipq6018-wifi")
-    require(len(wifi) == 1 and not dt.enabled(wifi[0]), "IPQ6018 Wi-Fi is not explicitly disabled")
-    require(dt.nodes[wifi[0]].get("status") == b"disabled\0", "Wi-Fi status must be disabled")
+    require(not wifi, "IPQ6018 Wi-Fi node must be removed for zero-Q6")
     nss = dt.compatible("qcom,nss")
     require(len(nss) == 1 and dt.enabled(nss[0]), "Expected one enabled NSS core")
     require(cell_value(dt.prop(nss[0], "qcom,id")) == 0, "NSS core ID is not zero")
@@ -251,17 +300,7 @@ def verify_board_dtb(data):
     size = int.from_bytes(reg[ac * 4:], "big")
     require((address, size) == (0x40000000, 0x01000000), "NSS reservation must be 16 MiB at 0x40000000")
     require("no-map" in dt.nodes[memory], "NSS reserved memory lacks no-map")
-    for path in dt.children("/reserved-memory"):
-        if "reg" not in dt.nodes[path]:
-            continue
-        values = dt.nodes[path]["reg"]
-        width = (ac + sc) * 4
-        require(len(values) % width == 0, "Malformed reserved-memory reg")
-        for start in range(0, len(values), width):
-            base = int.from_bytes(values[start:start + ac * 4], "big")
-            count = int.from_bytes(values[start + ac * 4:start + width], "big")
-            if base >= 0x40000000:
-                require(base + count <= 0x50000000, "Reserved memory exceeds conservative 256 MiB range: " + path)
+    wired_memory = verify_wired_reserved_memory(dt)
     require("root=/dev/ubiblock0_1" in dt.text("/chosen", "bootargs-append"),
             "DTB rootfs UBI volume selection changed")
     nand = dt.compatible("qcom,ipq6018-nand")
@@ -284,6 +323,7 @@ def verify_board_dtb(data):
     return {"model": "ZN M2", "compatible": ["zn,m2", "qcom,ipq6018"],
             "ports": ports, "wifi_disabled": True, "nss_node": nss[0],
             "nss_reserved_memory": {"path": memory, "address": hex(address), "bytes": size},
+            "wired_memory": wired_memory,
             "nand": {"controller": nand[0], "ecc_strength": 4, "ecc_step_bytes": 512,
                      "bus_width": 8, "partitions": "qcom,smem-part"},
             "switch": {"lan_bitmap": "0x16", "wan_bitmap": "0x20", "port_phy_map": switch_ports},
@@ -1490,7 +1530,6 @@ def fixture_board():
              "/aliases": {}, "/chosen": {"bootargs-append": s(" root=/dev/ubiblock0_1")},
              "/soc": {}, "/soc/nss-common": {"compatible": s("qcom,nss-common"), "memory-region": w(100)},
              "/soc/nss@40000000": {"compatible": s("qcom,nss"), "qcom,id": w(0), "qcom,load-addr": w(0x40000000)},
-             "/soc/wifi@c000000": {"compatible": s("qcom,ipq6018-wifi"), "status": s("disabled")},
              "/soc/nand-controller@79b0000": {"compatible": s("qcom,ipq6018-nand"), "status": s("okay")},
              "/soc/nand-controller@79b0000/nand@0": {"reg": w(0), "nand-ecc-strength": w(4),
                                                       "nand-ecc-step-size": w(512), "nand-bus-width": w(8)},
@@ -1500,6 +1539,12 @@ def fixture_board():
              "/soc/ess-switch@3a000000/qcom,port_phyinfo": {},
              "/reserved-memory": {"#address-cells": w(2), "#size-cells": w(2)},
              "/reserved-memory/memory@40000000": {"reg": struct.pack(">QQ", 0x40000000, 0x1000000), "no-map": b"", "phandle": w(100)}}
+    for name, address, size in (("memory@60000", 0x60000, 0x6000),
+                                ("bootloader@4a100000", 0x4a100000, 0x400000),
+                                ("sbl@4a500000", 0x4a500000, 0x100000),
+                                ("memory@4a600000", 0x4a600000, 0x400000),
+                                ("memory@4aa00000", 0x4aa00000, 0x100000)):
+        nodes["/reserved-memory/" + name] = {"reg": struct.pack(">QQ", address, size), "no-map": b""}
     for alias, port, label, phy in ((0, 1, "lan3", 0), (1, 2, "lan2", 1), (3, 4, "lan1", 3), (4, 5, "wan", 4)):
         path = "/soc/dp%d" % port
         nodes["/aliases"]["ethernet%d" % alias] = s(path)

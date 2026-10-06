@@ -4,6 +4,62 @@
 源码基于官方 OpenWrt v25.12.5（Linux 6.12.94），加上独立的 M2 板级与 NSS 适配。
 这不是官方发布的 M2 二进制固件，也不能把其他官方或 NSS 固件的模块混装进来。
 
+## taiyi3-q6zero：硬件未验证的零 Q6 实验布局
+
+**仅用于 ZN M2 的完全无 Wi-Fi 配置。尚未完成实机验证，不能把构建成功视为刷机安全保证。**
+
+`zn-m2-wired-memory-zero.patch` 在原 M2/NSS 板级补丁之后应用，只删除：
+
+- `wifi`：包括其对 WCSS 的 `qcom,rproc` 引用
+- `q6v5_wcss`：包括 WCSS 的 glink 子节点
+- `q6_region`：原地址 `[0x4ab00000, 0x50000000)`，85 MiB
+
+没有把 `reg` 长度写成 0，也没有留下指向已删除无线消费者的引用。
+NSS 与 Q6/WCSS 是独立保留区：NSS 仍为 `[0x40000000, 0x41000000)` 的 16 MiB，
+固件加载地址和 256 MB / LOW 配置不变。bootloader、SBL、TrustZone、SMEM 及 RPM
+消息内存保持原地址和大小；共享时钟、复位、SMP2P、温度传感器、有线、USB、NAND 不删除。
+软件包选择、内核/feeds/工具链版本均不变。该补丁不修改通用 IPQ6018 布局或其他设备。
+
+85 MiB 是设备树预留区的原始差额，不是承诺的 MemTotal/MemAvailable 增量。
+引导器可能修改最终 DT，内核元数据和 DTB 自身也可能有合法的小块占用。
+此配置不能通过安装无线包重新启用 Wi-Fi；恢复无线支持前必须恢复合适的内存布局。
+
+### 后续 workflow 如何使用
+
+版本和补丁哈希由 `Config/ZN-M2-NSS/sources.lock.json` 锁定。
+`build.py prepare` 按顺序应用原板级/NSS 补丁和零 Q6 补丁；缺少零 Q6 补丁时校验立即失败。
+`verify-images.py` 检查实际 sysupgrade/factory/initramfs DTB，拒绝旧 Q6 区域、无线节点、
+额外保留项、悬空 memory-region、以及被改动的保护区；端口、NAND、NSS 与模块 ABI 仍需通过原检查。
+
+工作流保持仅 `workflow_dispatch` 手动触发。提交代码不会自动构建、发布 Release 或刷机。
+下次从更新后的分支手动运行 **ZN-M2-NSS**，产物标识为 `25.12.5-nss-taiyi3-q6zero`。
+
+### 公开源码依据与边界
+
+下游 [16 MiB nowifi 改动](https://github.com/VIKINGYFY/immortalwrt/commit/201e5f538d213376595b275641932de31dfe9625)
+没有说明 16 MiB 是硬性下限；它是布局先例，不能代替当前固件的硬件验证。
+OpenWrt 在[另一款 IPQ5018 无 Wi-Fi 设备](https://github.com/openwrt/openwrt/commit/e5c3f4569de572e7fee27158a19c3d33014012a4)
+禁用了 Q6 预留与无线消费者；该先例不是 IPQ6018/M2 的安全证明。
+
+在 chenxin527/uboot-qsdk12.5-build 的公开提交
+[3011049](https://github.com/chenxin527/uboot-qsdk12.5-build/commit/3011049917bfb2fdc9a141196b3a94b63e58b96a)中，
+[RAM 修正](https://github.com/chenxin527/uboot-qsdk12.5-build/blob/3011049917bfb2fdc9a141196b3a94b63e58b96a/u-boot-2016/board/qca/arm/common/fdt_fixup.c#L1048-L1097)
+描述完整检测 DDR，IPQ6018 的[保留区添加列表](https://github.com/chenxin527/uboot-qsdk12.5-build/blob/3011049917bfb2fdc9a141196b3a94b63e58b96a/u-boot-2016/board/qca/arm/ipq6018/ipq6018.c#L45-L49)
+为空。删除无线节点也避免了针对既有节点的陈旧 `fdtedit` 属性覆盖重新启用它们。
+这些源码行为不能证明任意已安装引导器或 SBL/TZ 的安全内存归属及热复位状态。
+
+### 硬件验收与恢复要求
+
+1. 先保留可用的旧固件、配置备份和已验证的救援/回滚方法，并具备本地有线或控制台访问
+2. 优先使用已确认适用于当前引导器的临时 RAM 启动方式；未确认恢复方法时不要写闪存
+3. 首次完整断电冷启动，核对实际 DDR、最终 DT、header memreserve、Q6/WCSS/Wi-Fi 节点消失、NSS 正常启动
+4. 核对 MemTotal；区分 DTB 自身/元数据的小块占用与重新出现的 Q6 大块预留
+5. 用两侧主机持续进行 NSS 转发和有余量的内存压力测试；单纯 CPU 内存测试或本机测速不能验证 NSS DMA
+6. 再测试热重启、连接反复建立/关闭及较长实际负载，不得出现 SError、external abort、内存损坏、NSS crash 或无故重启
+
+普通内存测试不保证覆盖某个完整物理地址段。若异常，应停止测试并按已验证方法回滚，
+保存启动日志，不要顺带修改 U-Boot、NSS、TZ 或分区表。
+
 ## 日常只改一个配置文件
 
 - `Config/ZN-M2-NSS.config`：设备、256 MB / LOW NSS 内存方案、预装软件包

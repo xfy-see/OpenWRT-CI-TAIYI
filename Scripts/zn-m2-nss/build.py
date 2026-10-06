@@ -75,6 +75,9 @@ def validate_inputs():
         require(path.is_relative_to(ROOT / "Config/ZN-M2-NSS/patches"), "Patch escaped allowlist")
         require(digest(path) == patch["sha256"], "Patch hash mismatch: " + patch["file"])
         require(patch["directory"] in {".", "feeds/packages", "feeds/nss_packages"}, "Unexpected patch target")
+    require(any(patch["file"] == "Config/ZN-M2-NSS/patches/zn-m2-wired-memory-zero.patch"
+                and patch["directory"] == "." for patch in lock["patches"]),
+            "Missing zero-Q6 board patch in source lock")
     config = read_config(PROFILE_PATH.read_text())
     for key in ("TARGET_qualcommax", "TARGET_qualcommax_ipq60xx", "TARGET_qualcommax_ipq60xx_DEVICE_zn_m2",
                 "TARGET_ROOTFS_INITRAMFS", "PACKAGE_dnsmasq-full", "PACKAGE_ip-full", "PACKAGE_luci",
