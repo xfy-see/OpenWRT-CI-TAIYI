@@ -21,11 +21,23 @@ Actions → **ZN-M2-NSS** 是新的固件打包入口：
 这是自定义固件，不是官方 M2 二进制发行版。模块必须来自同一次构建，不可与其他官方/NSS 固件混装。
 本入口仅用于 **ZN M2**，不能给京东云太乙刷入。
 
+## RE-CS-07 固定 release / NSS 构建
+
+Actions → **RE-CS-07-NSS** 是京东云 RE-CS-07 的独立入口，配置版本为 **25.12.5-nss-recs07.2**。
+采用相同固定官方 release / NSS 12.5 底座，无 Wi-Fi，dnsmasq-full；针对 2 GiB eMMC 机型使用 1024 / MEDIUM 资源配置，不套用 M2 的零 Q6 实验。
+
+- 手动 `build` 完整编译，标准 Ubuntu 24.04 runner，默认并行数 4
+- 检查 6 MiB HLOS 内核和 60 MiB rootfs 容量，输出 sysupgrade TAR 和 initramfs FIT
+- 保留 block-mount 手动挂载支持，默认不自动复用旧 extroot 或数据分区
+- 同次交付固件、离线 APK、配置/源码和验证报告，仍须单独验证实机及已安装的第三方 U-Boot
+
+[配置、eMMC 升级限制与使用方法](docs/RE-CS-07-NSS.md)。此入口不会修改 ZN M2 的配置或工作流。
+
 ## 已简化的旧入口
 
 - `QCA-ALL`：退役为手动说明任务，只有只读权限，不再调用旧核心、下载移动分支或执行外部脚本
 - `Auto-Clean`：手动只读盘点，不再自动删除 Release、标签、artifact 或运行记录
-- `WRT-CORE.yml`、旧 `Config/` 与 `Scripts/`：保留作历史参考，新入口不会调用；京东云太乙尚未迁移
+- `WRT-CORE.yml`、旧 `Config/` 与 `Scripts/`：保留作历史参考，新入口不会调用；其他旧机型仍保留作历史参考
 - `Cache-Clean`：原有缓存维护任务保留，与固件/Release 保留无关
 
 旧 GENERAL 也已显式以 dnsmasq-full 替换 dnsmasq。不会复制私人代理、VPN、网络或口令配置。
