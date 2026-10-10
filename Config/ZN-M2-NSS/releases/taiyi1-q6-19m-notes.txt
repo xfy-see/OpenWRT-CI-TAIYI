@@ -1,0 +1,29 @@
+ZN M2：taiyi1 + 稳定版 Q6 保留区布局（已完成有界实机测试）
+
+本版将早期 taiyi1 的 Q6 合并保留区从 85 MiB 调整为参考已使用稳定版的 16 + 1 + 1 + 1 MiB 布局，增加 Linux 可用内存。仅适用于 ZN M2 / zn,m2 / qualcommax-ipq60xx 有线版，不适用于 RE-CS07 / 京东云太乙。
+
+构建与变更
+- 基于 OpenWrt 25.12.5 + 定制 NSS 移植的 taiyi1，Linux 6.12.94。
+- 只重新编译设备树并重打包 FIT/sysupgrade；内核压缩数据与 rootfs 均与原 taiyi1 字节一致。因此 LuCI/系统版本仍显示 25.12.5-nss-taiyi1。
+- Q6：16 MiB @ 0x4ab00000；ETR：1 MiB @ 0x4bb00000；M3 dump：1 MiB @ 0x4bc00000；ramoops：1 MiB @ 0x4bd00000。
+- NSS 16 MiB 保留区、其余设备树属性、驱动和软件包不变；Wi-Fi 保持关闭，实机 Q6 remoteproc 为 offline。
+- Linux MemTotal 从 130344 KiB（127.3 MiB）增至 197600 KiB（193.0 MiB），实际增加约 65.7 MiB。
+- 原 taiyi1 内核未启用 CONFIG_PSTORE，保留 ramoops 空间不代表启用持久化崩溃日志。
+
+2026-10-10 实机验证
+- minimal/full 各约 10 分钟，加 111361 条规则约 2 分钟，合计 468000 次 DNS 请求，零错误。
+- UDP/TCP、1/4/16 并发、冷热缓存及 IPv4/IPv6 nft 集合重建通过。
+- 原始 sing-box 1.12.17 / 1.13.21 各 10 次最小配置 check 通过；未启动代理业务流量。
+- 48 MiB 内存文件、两组数据共 20 次重复校验通过；不是完整物理内存测试。
+- 期间无 OOM、意外重启或观察到的内核异常；采集的 NSS 错误/丢包计数无新增。
+- 未验证物理断电冷启动、多日稳定性、iperf/NSS 转发加速或完整 WireGuard 套件。测试不能证明 q6zero 是历史故障的唯一原因。
+
+使用与附件
+- 现有兼容 OpenWrt 系统使用文件名含 sysupgrade 的 .bin；本 Release 不提供 factory/UBI/U-Boot 镜像。
+- 先备份配置，核对 SHA256SUMS，并运行 sysupgrade -T；请勿把此文件当作 U-Boot 恢复镜像。
+- ZIP 包包含同一固件、设备树、构建清单、测试摘要、构建配置/脚本和校验和。它不包含实机测试设备的网络配置、备份或凭据，安装后也不会自动设置为该设备的交换机模式。
+
+固件 SHA-256：9cf9191376127c328fae14c2a5d643c63962aca13cfb6479f03d429911228450
+实机测试对应构建：https://github.com/xfy-see/OpenWRT-CI-TAIYI/actions/runs/38022741845
+构建代码提交：99f3c73409aff613a5c67a3ccaa2129a9b3d5996
+保留区参考：VIKINGYFY/immortalwrt@0fb9b10cb9df51fb076470e1dd93d1c30dd89d83 的 ipq6018-nowifi.dtsi。

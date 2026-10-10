@@ -1,0 +1,56 @@
+name: Publish tested ZN M2 taiyi1 Q6 19 MiB
+on:
+  push:
+    branches: [release/zn-m2-taiyi1-q6-19m-20261010]
+    paths:
+      - .github/workflows/ZN-M2-Q6-19M-RELEASE.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: release-zn-m2-taiyi1-q6-19m-20261010
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      TAG: ZN-M2-25.12.5-nss-taiyi1-q6-19m-20261010
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: taiyi1-q6-19m-38022741845
+          run-id: 38022741845
+          github-token: ${{ github.token }}
+          path: tested
+      - name: Validate tested firmware and assemble release
+        run: python3 Scripts/zn-m2-nss/package-q6-19m-release.py
+      - name: Create draft with all verified assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to overwrite assets.' >&2
+            exit 1
+          fi
+          gh release create "$TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title 'ZN M2 · taiyi1 + Q6 19 MiB 保留区布局 · 2026-10-10' \
+            --notes-file Config/ZN-M2-NSS/releases/taiyi1-q6-19m-notes.txt \
+            --draft --prerelease --latest=false
+      - name: Verify uploaded assets before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir downloaded
+          diff release-assets/SHA256SUMS downloaded/SHA256SUMS
+          (cd downloaded && sha256sum -c SHA256SUMS)
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,isDraft,isPrerelease,tagName

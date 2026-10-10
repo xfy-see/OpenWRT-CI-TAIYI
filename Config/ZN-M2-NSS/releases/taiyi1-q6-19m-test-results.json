@@ -1,0 +1,292 @@
+{
+  "experiment": "taiyi1-q6-19m",
+  "method": "DT recompile and FIT/sysupgrade repack; not a kernel/rootfs rebuild",
+  "ci_run": 38022741845,
+  "configuration_commit": "99f3c73409aff613a5c67a3ccaa2129a9b3d5996",
+  "image_sha256": "9cf9191376127c328fae14c2a5d643c63962aca13cfb6479f03d429911228450",
+  "kernel": "6.12.94",
+  "kernel_and_rootfs_identical_to_taiyi1": true,
+  "reserved_mib": {
+    "q6": 16,
+    "q6_etr": 1,
+    "m3_dump": 1,
+    "ramoops": 1,
+    "nss_unchanged": 16
+  },
+  "memory_comparison_kib": {
+    "original_taiyi1": 130344,
+    "experiment": 197600,
+    "stable": 196904,
+    "linux_gain_vs_original": 67256
+  },
+  "total_dns_queries": 468000,
+  "total_dns_errors": 0,
+  "limitations": [
+    "Warm boot only; no physical cold boot or multi-day observation.",
+    "Adapted DNS/nft workflow, not the entire mosdns workflow, WireGuard or public-page suite.",
+    "DNS terminates at router; NSS counters are not proof of forwarding acceleration. SSH to 122 and 128 timed out again.",
+    "Original sing-box checks use a 24 MiB hard cgroup limit, unlike the historical failure; no proxy traffic.",
+    "Comparing original taiyi1 with this layout controls kernel/rootfs bytes. It does not isolate every change in taiyi3-q6zero.",
+    "Firmware display identity intentionally remains taiyi1 because its rootfs bytes were preserved.",
+    "Ramoops region is reserved, but original taiyi1 kernel has CONFIG_PSTORE disabled; no persistent crash capture was enabled."
+  ],
+  "interpretation": "taiyi1 with the stable-style 19 MiB Q6-related reservation layout passed this bounded test and gained about 65.7 MiB Linux RAM. This supports the viability of OpenWrt 25.12.5 with this custom NSS port and preserved Q6 layout for the tested workloads; it does not establish long-term stability or prove q6zero is the sole cause.",
+  "test_date": "2026-10-10",
+  "device": "ZN M2",
+  "status": "passed",
+  "unexpected_reboots": 0,
+  "kernel_errors": [],
+  "nss_error_drop_counter_increase": false,
+  "dns_tests": [
+    {
+      "profile": "full",
+      "fixture_entries": 1025,
+      "status": "passed",
+      "observed_seconds": 613.2,
+      "queries": 184000,
+      "errors": 0,
+      "batches": 92,
+      "matrix": [
+        [
+          "tcp",
+          1,
+          false
+        ],
+        [
+          "tcp",
+          1,
+          true
+        ],
+        [
+          "tcp",
+          4,
+          false
+        ],
+        [
+          "tcp",
+          4,
+          true
+        ],
+        [
+          "tcp",
+          16,
+          false
+        ],
+        [
+          "tcp",
+          16,
+          true
+        ],
+        [
+          "udp",
+          1,
+          false
+        ],
+        [
+          "udp",
+          1,
+          true
+        ],
+        [
+          "udp",
+          4,
+          false
+        ],
+        [
+          "udp",
+          4,
+          true
+        ],
+        [
+          "udp",
+          16,
+          false
+        ],
+        [
+          "udp",
+          16,
+          true
+        ]
+      ],
+      "minimum_available_kib": 84528,
+      "cgroup_peak_bytes": 5869568,
+      "maximum_temperature_millicelsius": 50000,
+      "persistent_config_and_rules_unchanged": true
+    },
+    {
+      "profile": "minimal",
+      "fixture_entries": 1025,
+      "status": "passed",
+      "observed_seconds": 603.1,
+      "queries": 246000,
+      "errors": 0,
+      "batches": 123,
+      "matrix": [
+        [
+          "tcp",
+          1,
+          false
+        ],
+        [
+          "tcp",
+          1,
+          true
+        ],
+        [
+          "tcp",
+          4,
+          false
+        ],
+        [
+          "tcp",
+          4,
+          true
+        ],
+        [
+          "tcp",
+          16,
+          false
+        ],
+        [
+          "tcp",
+          16,
+          true
+        ],
+        [
+          "udp",
+          1,
+          false
+        ],
+        [
+          "udp",
+          1,
+          true
+        ],
+        [
+          "udp",
+          4,
+          false
+        ],
+        [
+          "udp",
+          4,
+          true
+        ],
+        [
+          "udp",
+          16,
+          false
+        ],
+        [
+          "udp",
+          16,
+          true
+        ]
+      ],
+      "minimum_available_kib": 83356,
+      "cgroup_peak_bytes": 5722112,
+      "maximum_temperature_millicelsius": 49100,
+      "persistent_config_and_rules_unchanged": true
+    },
+    {
+      "profile": "full",
+      "fixture_entries": 111361,
+      "status": "passed",
+      "observed_seconds": 122.3,
+      "queries": 38000,
+      "errors": 0,
+      "batches": 19,
+      "matrix": [
+        [
+          "tcp",
+          1,
+          false
+        ],
+        [
+          "tcp",
+          1,
+          true
+        ],
+        [
+          "tcp",
+          4,
+          false
+        ],
+        [
+          "tcp",
+          4,
+          true
+        ],
+        [
+          "tcp",
+          16,
+          false
+        ],
+        [
+          "tcp",
+          16,
+          true
+        ],
+        [
+          "udp",
+          1,
+          false
+        ],
+        [
+          "udp",
+          1,
+          true
+        ],
+        [
+          "udp",
+          4,
+          false
+        ],
+        [
+          "udp",
+          4,
+          true
+        ],
+        [
+          "udp",
+          16,
+          false
+        ],
+        [
+          "udp",
+          16,
+          true
+        ]
+      ],
+      "minimum_available_kib": 75356,
+      "cgroup_peak_bytes": 15519744,
+      "maximum_temperature_millicelsius": 50000,
+      "persistent_config_and_rules_unchanged": true
+    }
+  ],
+  "singbox": {
+    "status": "passed",
+    "checks": 20,
+    "binary_hashes": {
+      "1.12.17": "5e9bb14f20749d5035dca0dce6c4b90b00387c1c2db15cd448a9afcde8125b93",
+      "1.13.21": "2e7c1f5951e75661330ac6eecdb25d027dd1cd00fe695fdc6f5ccf866347e38f"
+    },
+    "config_sha256": "298ea05a783f10ff49971394506841bf60bb312ecf53723b987694c50383374a",
+    "limits": {
+      "memory_max_bytes": 25165824,
+      "GOMEMLIMIT": "90MiB",
+      "GOGC": 100,
+      "GOMAXPROCS": 2
+    }
+  },
+  "memory_exercise": {
+    "status": "passed",
+    "bytes": 50331648,
+    "memory_max_bytes": 67108864,
+    "limitations": [
+      "48 MiB tmpfs page write/read/checksum exercise, not memtester or coverage of specified physical addresses.",
+      "Additional experiment-only workload; not part of the original taiyi1 comparison."
+    ],
+    "successful_repeat_checks": 20
+  }
+}
