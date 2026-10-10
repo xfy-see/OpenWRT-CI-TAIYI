@@ -1,0 +1,44 @@
+name: taiyi1 Q6 19 MiB isolated DT experiment
+on:
+  push:
+    branches: [experiment/taiyi1-q6-19m-20261010]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compile-dt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install device tree compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y device-tree-compiler
+      - uses: actions/download-artifact@v4
+        with:
+          name: zn-m2-nss-build-37320153498-1
+          run-id: 37320153498
+          github-token: ${{ github.token }}
+          path: baseline
+      - name: Validate pinned archive and select original sysupgrade
+        shell: python
+        run: |
+          import hashlib,tarfile,pathlib
+          p=pathlib.Path('baseline/ZN-M2-25.12.5-nss-taiyi1-firmware.tar.gz')
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='47744048330e79e3a302b7b2bed9401f66ea80212c162016208c15eb5e2dbb73'
+          with tarfile.open(p) as t:
+            matches=[m for m in t.getmembers() if m.name.endswith('-sysupgrade.bin')]
+            assert len(matches)==1 and matches[0].isfile()
+            pathlib.Path('baseline.bin').write_bytes(t.extractfile(matches[0]).read())
+      - name: Compile and validate controlled experiment
+        run: python3 Scripts/zn-m2-nss/build-q6-19m.py baseline.bin output
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: taiyi1-q6-19m-${{ github.run_id }}
+          path: |
+            output/*sysupgrade.bin
+            output/manifest.json
+            output/SHA256SUMS
+            output/board.dts
+            output/board.dtb
+          retention-days: 30
+          if-no-files-found: error
